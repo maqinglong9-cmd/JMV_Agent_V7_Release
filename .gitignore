@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv*/
+.venv/
+
+# APK / build artifacts
+bin/
+.buildozer/
+
+# Sensitive / local-only
+jmv_release.keystore
+jmv_compute_config.json
+*.keystore
+*.jks
+
+# Large workspace / output files
+jmv_workspace/
+jmv_long_term_memory.json
+jmv_output_speech.wav
+buildozer_output.log
+build_all_output.txt
+build_all_err.txt
+test_vision.ppm
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

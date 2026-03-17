@@ -1,0 +1,14 @@
+{
+  "version": "1.1.0",
+  "release_notes": "JMV智伴 1.1.0 全功能版\n- 重构: 手机端全新专业UI（全固定高度布局，LogViewer自适应填充）\n- 优化: 脑区仪表盘紧凑88dp（4列卡片一行显示）\n- 优化: 输入面板固定144dp（智能/专家可切换展开）\n- 新增: 工具栏集成AI进化🧬和清理🗑按钮\n- 新增: 底部三栏导航（脑感知/对话/设置）\n- 新增: 纯 Kivy 算力配置界面（支持 Android）\n- 新增: 多轮 AI 对话功能（💬 对话标签）\n- 新增: 智能一键感知（AI 自动分析三路感知）\n- 新增: API Key 持久化存储（重启后不丢失）\n- 修复: APK 签名问题（可正常安装到 Android）",
+  "assets": {
+    "windows": {
+      "url": "https://github.com/maqinglong9-cmd/JMV_Agent_V7_Release/releases/download/v1.1.0/BrainAgent.exe",
+      "sha256": "b12c7ee2de5d2ecccc17f14f1ab6ad0dd7246a544939de2e04d6ee1a440c8ef6"
+    },
+    "android": {
+      "url": "https://github.com/maqinglong9-cmd/JMV_Agent_V7_Release/releases/download/v1.1.0/jmvagent-1.1.0-release-signed.apk",
+      "sha256": "69c175f4410a5f22d0d88c9773d8edd34e453046d5b56e1b56288a92fbffbfd1"
+    }
+  }
+}

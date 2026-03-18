@@ -5,7 +5,7 @@ package.domain = org.jmv
 source.dir = .
 source.include_exts = py,png,jpg,json,kv,ttc,ttf
 source.exclude_dirs = venv311,tests,.buildozer,dist,build,__pycache__,.git,.github,scripts
-version = 1.1.0
+version = 1.2.0
 
 requirements = python3,kivy==2.3.0
 

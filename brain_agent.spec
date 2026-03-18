@@ -134,6 +134,16 @@ a = Analysis(
         'agent.voice_output',
         # 多 Agent 路由器
         'adapter.agent_router',
+        # LLM 配置数据（无 Kivy 依赖）
+        'ui.llm_config_data',
+        # 模块化 LLM 供应商包（20个供应商）
+        'agent.providers',
+        'agent.providers.base',
+        'agent.providers.openai_compat',
+        'agent.providers.gemini',
+        'agent.providers.anthropic',
+        'agent.providers.ollama',
+        'agent.providers.registry',
         # 语音播放
         'winsound',
     ],

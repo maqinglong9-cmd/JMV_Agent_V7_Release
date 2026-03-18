@@ -3,6 +3,19 @@
 """
 import threading
 
+# ── 颜色常量 ─────────────────────────────────────────────
+C_BG       = (0.06, 0.08, 0.12, 1)
+C_CARD     = (0.10, 0.14, 0.22, 1)
+C_SECTION  = (0.09, 0.12, 0.18, 1)
+C_INPUT_BG = (0.08, 0.11, 0.17, 1)
+C_TEXT     = (0.90, 0.92, 0.95, 1)
+C_SUBTEXT  = (0.55, 0.62, 0.75, 1)
+C_GREEN    = (0.20, 0.75, 0.45, 1)
+C_YELLOW   = (0.85, 0.70, 0.20, 1)
+C_RED      = (0.80, 0.25, 0.25, 1)
+C_BTN_SAVE = (0.18, 0.58, 0.32, 1)
+C_BTN_TEST = (0.18, 0.28, 0.48, 1)
+
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.label import Label

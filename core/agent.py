@@ -8,6 +8,7 @@ from core.brain_regions import (
 
 class WholeBrainAgent:
     """完整的大脑 Agent 系统集成"""
+
     def __init__(self):
         self.csf = CerebrospinalFluid()
         self.frontal = FrontalLobe()
@@ -18,6 +19,9 @@ class WholeBrainAgent:
         self.hypothalamus = Hypothalamus()
         self.cerebellum = Cerebellum()
         self.brainstem = Brainstem()
+        # 进化引擎兼容属性
+        self.tool_registry = None
+        self.metacognition = None
 
     def perceive_and_react(self, visual_input: str, audio_input: str, somatosensory_input: str) -> list:
         """模拟大脑处理多模态信息并作出反应，返回步骤日志列表。单个脑区失败不中断整体流程。"""
@@ -33,10 +37,11 @@ class WholeBrainAgent:
                     label = getattr(fn, '__name__', str(fn))
                 return f"[错误] {label}: {e}"
 
+        combined = f"视觉:[{visual_input}], 听觉:[{audio_input}], 触觉:[{somatosensory_input}]"
+
         logs.append(_safe(self.csf.circulate))
         logs.append(_safe(self.brainstem.maintain_vital_functions))
         logs.append(_safe(self.hypothalamus.regulate_homeostasis))
-        combined = f"视觉:[{visual_input}], 听觉:[{audio_input}], 触觉:[{somatosensory_input}]"
         logs.append(_safe(self.thalamus.relay_information, combined))
         logs.append(_safe(self.occipital.process_vision, visual_input))
         logs.append(_safe(self.temporal.process_audio_and_memory, audio_input))

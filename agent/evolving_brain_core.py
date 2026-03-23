@@ -36,6 +36,19 @@ class EvolvingBrainCore:
         "执行命令": "CALL_TOOL_SHELL",
         "运行命令": "CALL_TOOL_SHELL",
         "终端执行": "CALL_TOOL_SHELL",
+        # Android 底层操作关键字
+        "启动APP":  "CALL_TOOL_ANDROID_LAUNCH",
+        "启动app":  "CALL_TOOL_ANDROID_LAUNCH",
+        "点击屏幕": "CALL_TOOL_ANDROID_TAP",
+        "输入文字": "CALL_TOOL_ANDROID_TYPE",
+        "截屏":     "CALL_TOOL_ANDROID_SCREENSHOT",
+        "截图":     "CALL_TOOL_ANDROID_SCREENSHOT",
+        # Windows 底层操作关键字
+        "读取文件": "CALL_TOOL_WIN_FILE_READ",
+        "写入文件": "CALL_TOOL_WIN_FILE_WRITE",
+        "注册表":   "CALL_TOOL_WIN_REG_READ",
+        "进程列表": "CALL_TOOL_WIN_PROCESS_LIST",
+        "剪贴板":   "CALL_TOOL_WIN_CLIPBOARD",
     }
 
     def __init__(self, metacognition: MetacognitionComponent):

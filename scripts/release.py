@@ -53,20 +53,19 @@ def build_latest_json(
     windows_sha256: str,
     android_url: str,
     android_sha256: str,
+    linux_url: str = "",
+    linux_sha256: str = "",
 ) -> dict:
+    assets = {
+        "windows": {"url": windows_url, "sha256": windows_sha256},
+        "android": {"url": android_url, "sha256": android_sha256},
+    }
+    if linux_url:
+        assets["linux"] = {"url": linux_url, "sha256": linux_sha256}
     return {
         "version": version,
         "release_notes": release_notes,
-        "assets": {
-            "windows": {
-                "url": windows_url,
-                "sha256": windows_sha256,
-            },
-            "android": {
-                "url": android_url,
-                "sha256": android_sha256,
-            },
-        },
+        "assets": assets,
     }
 
 
@@ -80,35 +79,42 @@ def main():
     print(f"[release] 版本号: {version}")
 
     # ── 查找制品 ────────────────────────────────────────────
-    exe_path = find_artifact("BrainAgent")
-    apk_path = find_artifact(".apk")
+    exe_path   = find_artifact("BrainAgent.exe")
+    apk_path   = find_artifact(".apk")
+    linux_path = find_artifact("BrainAgent_linux")
 
-    if not exe_path and not apk_path:
-        print("[release] 错误：dist/ 目录中未找到 EXE 或 APK，请先执行构建。")
+    if not exe_path and not apk_path and not linux_path:
+        print("[release] 错误：dist/ 目录中未找到任何制品，请先执行构建。")
         sys.exit(1)
 
-    exe_sha256 = sha256_of(exe_path) if exe_path else ""
-    apk_sha256 = sha256_of(apk_path) if apk_path else ""
+    exe_sha256   = sha256_of(exe_path)   if exe_path   else ""
+    apk_sha256   = sha256_of(apk_path)   if apk_path   else ""
+    linux_sha256 = sha256_of(linux_path) if linux_path else ""
 
     print(f"[release] Windows EXE : {exe_path or '未找到'}")
     print(f"[release] Windows SHA256: {exe_sha256[:16]}..." if exe_sha256 else "")
     print(f"[release] Android APK : {apk_path or '未找到'}")
     print(f"[release] Android SHA256: {apk_sha256[:16]}..." if apk_sha256 else "")
+    print(f"[release] Linux ELF   : {linux_path or '未找到'}")
+    print(f"[release] Linux SHA256: {linux_sha256[:16]}..." if linux_sha256 else "")
 
     # ── 占位 URL（上传后替换）──────────────────────────────
     tag        = f"v{version}"
     base_url   = f"https://github.com/maqinglong9-cmd/JMV_Agent_V7_Release/releases/download/{tag}"
-    exe_url    = f"{base_url}/{os.path.basename(exe_path)}" if exe_path else ""
-    apk_url    = f"{base_url}/{os.path.basename(apk_path)}" if apk_path else ""
+    exe_url    = f"{base_url}/{os.path.basename(exe_path)}"   if exe_path   else ""
+    apk_url    = f"{base_url}/{os.path.basename(apk_path)}"   if apk_path   else ""
+    linux_url  = f"{base_url}/{os.path.basename(linux_path)}" if linux_path else ""
 
-    # ── 生成 latest.json ───────────────────────────────────
+    # ── 生成 latest.json ────────────────────────────��──────
     latest = build_latest_json(
-        version      = version,
-        release_notes= args.notes or f"JMV智伴 {version} 正式版",
-        windows_url  = exe_url,
-        windows_sha256=exe_sha256,
-        android_url  = apk_url,
-        android_sha256=apk_sha256,
+        version       = version,
+        release_notes = args.notes or f"JMV智伴 {version} 正式版",
+        windows_url   = exe_url,
+        windows_sha256= exe_sha256,
+        android_url   = apk_url,
+        android_sha256= apk_sha256,
+        linux_url     = linux_url,
+        linux_sha256  = linux_sha256,
     )
 
     out_path = os.path.join(ROOT, "latest.json")
@@ -120,7 +126,7 @@ def main():
     # ── 上传到 GitHub Releases ─────────────────────────────
     if args.upload:
         print(f"[release] 正在创建 GitHub Release {tag} ...")
-        artifacts = [p for p in [exe_path, apk_path, out_path] if p and os.path.isfile(p)]
+        artifacts = [p for p in [exe_path, apk_path, linux_path, out_path] if p and os.path.isfile(p)]
         cmd = [
             "gh", "release", "create", tag,
             "--title", f"{APP_NAME} {version}",

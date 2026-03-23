@@ -122,6 +122,97 @@ class TestChatAgentWithLLM:
         assert '第一条消息' in calls[1] or '第二条消息' in calls[1]
 
 
+class TestChatAgentToolCalling:
+    def test_tool_call_parsed_and_executed(self):
+        """LLM 返回 [TOOL:xxx:yyy] 时，应解析并执行工具"""
+        fake_llm = mock.MagicMock()
+        # 第一次调用返回工具调用指令，第二次返回最终回复
+        fake_llm.chat.side_effect = [
+            ('[TOOL:CALL_TOOL_CALCULATOR:2+2]', 'SUCCESS'),
+            ('计算结果是 4', 'SUCCESS'),
+        ]
+        agent = ChatAgent(llm_client=fake_llm)
+        agent.clear_history()
+
+        fake_tools = mock.MagicMock()
+        fake_tools.execute.return_value = '4'
+        agent._tools = fake_tools
+
+        result = agent.chat('2 加 2 等于多少')
+        fake_tools.execute.assert_called_once()
+        assert fake_llm.chat.call_count == 2
+        assert result == '计算结果是 4'
+
+    def test_tool_call_without_params(self):
+        """[TOOL:工具名] 无参数格式也应正确解析"""
+        fake_llm = mock.MagicMock()
+        fake_llm.chat.side_effect = [
+            ('[TOOL:CALL_TOOL_ANDROID_SYSINFO]', 'SUCCESS'),
+            ('系统信息已获取', 'SUCCESS'),
+        ]
+        agent = ChatAgent(llm_client=fake_llm)
+        agent.clear_history()
+
+        fake_tools = mock.MagicMock()
+        fake_tools.execute.return_value = 'Android 13, RAM: 6GB'
+        agent._tools = fake_tools
+
+        result = agent.chat('查看系统信息')
+        call_args = fake_tools.execute.call_args[0]
+        assert 'CALL_TOOL_ANDROID_SYSINFO' in call_args[0]
+        assert result == '系统信息已获取'
+
+    def test_tool_execution_failure_shows_error(self):
+        """工具执行异常时，返回错误说明而不崩溃"""
+        fake_llm = mock.MagicMock()
+        fake_llm.chat.side_effect = [
+            ('[TOOL:CALL_TOOL_SHELL:rm -rf /]', 'SUCCESS'),
+            ('操作已处理', 'SUCCESS'),
+        ]
+        agent = ChatAgent(llm_client=fake_llm)
+        agent.clear_history()
+
+        fake_tools = mock.MagicMock()
+        fake_tools.execute.side_effect = RuntimeError('权限不足')
+        agent._tools = fake_tools
+
+        result = agent.chat('执行命令')
+        # 即使工具异常，也不应抛出，应继续
+        assert isinstance(result, str)
+        assert len(result) > 0
+
+    def test_no_tool_call_in_normal_reply(self):
+        """正常回复（不含 [TOOL:...]）不应触发工具调用"""
+        fake_llm = mock.MagicMock()
+        fake_llm.chat.return_value = ('今天天气不错', 'SUCCESS')
+        agent = ChatAgent(llm_client=fake_llm)
+        agent.clear_history()
+
+        fake_tools = mock.MagicMock()
+        agent._tools = fake_tools
+
+        result = agent.chat('今天天气怎么样')
+        fake_tools.execute.assert_not_called()
+        assert result == '今天天气不错'
+
+    def test_tool_llm_second_call_failure_fallback(self):
+        """工具执行后二次 LLM 调用失败，应直接返回工具结果"""
+        fake_llm = mock.MagicMock()
+        fake_llm.chat.side_effect = [
+            ('[TOOL:CALL_TOOL_CALCULATOR:10*10]', 'SUCCESS'),
+            (None, 'HTTP_500'),
+        ]
+        agent = ChatAgent(llm_client=fake_llm)
+        agent.clear_history()
+
+        fake_tools = mock.MagicMock()
+        fake_tools.execute.return_value = '100'
+        agent._tools = fake_tools
+
+        result = agent.chat('10 乘以 10')
+        assert '100' in result
+
+
 class TestChatAgentPersistence:
     def test_save_and_load_memory(self, tmp_path):
         """保存记忆后重新创建的 Agent 应加载历史"""

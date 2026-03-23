@@ -16,26 +16,103 @@ PROVIDERS = [
     'Ollama',
 ]
 
+# (field_key, 显示标签, is_secret, hint_text)
+# hint_text 用于输入框占位提示（含格式示例）
 _PROVIDER_FIELDS = {
-    'Gemini':     [('gemini_key',      'API Key',   True),  ('gemini_model',     '模型名称', False)],
-    'OpenAI':     [('openai_key',      'API Key',   True),  ('openai_model',     '模型名称', False)],
-    'Claude':     [('claude_key',      'API Key',   True),  ('claude_model',     '模型名称', False)],
-    'DeepSeek':   [('deepseek_key',    'API Key',   True),  ('deepseek_model',   '模型名称', False)],
-    'Mistral':    [('mistral_key',     'API Key',   True),  ('mistral_model',    '模型名称', False)],
-    'Groq':       [('groq_key',        'API Key',   True),  ('groq_model',       '模型名称', False)],
-    'Yi':         [('yi_key',          'API Key',   True),  ('yi_model',         '模型名称', False)],
-    'Grok':       [('grok_key',        'API Key',   True),  ('grok_model',       '模型名称', False)],
-    'Perplexity': [('perplexity_key',  'API Key',   True),  ('perplexity_model', '模型名称', False)],
-    'Together':   [('together_key',    'API Key',   True),  ('together_model',   '模型名称', False)],
-    'Qwen':       [('qwen_key',        'API Key',   True),  ('qwen_model',       '模型名称', False)],
-    'ERNIE':      [('ernie_key',       'API Key',   True),  ('ernie_model',      '模型名称', False)],
-    'Zhipu':      [('zhipu_key',       'API Key',   True),  ('zhipu_model',      '模型名称', False)],
-    'Kimi':       [('kimi_key',        'API Key',   True),  ('kimi_model',       '模型名称', False)],
-    'MiniMax':    [('minimax_key',     'API Key',   True),  ('minimax_model',    '模型名称', False)],
-    'Doubao':     [('doubao_key',      'API Key',   True),  ('doubao_model',     '模型名称', False)],
-    'Stepfun':    [('stepfun_key',     'API Key',   True),  ('stepfun_model',    '模型名称', False)],
-    'Spark':      [('spark_key',       'API Key',   True),  ('spark_model',      '模型名称', False)],
-    'Ollama':     [('ollama_endpoint', '接口地址',  False), ('ollama_model',     '模型名称', False)],
+    'Gemini': [
+        ('gemini_key',      'API Key',  True,  'AIzaSy... (Google AI Studio 获取)'),
+        ('gemini_model',    '模型名称', False, 'gemini-2.5-flash'),
+        ('gemini_endpoint', 'API端点',  False, '留空使用官方地址，填代理前缀如 https://your-proxy.com'),
+    ],
+    'OpenAI': [
+        ('openai_key',      'API Key',  True,  'sk-... (platform.openai.com 获取)'),
+        ('openai_model',    '模型名称', False, 'gpt-4o-mini'),
+        ('openai_endpoint', 'API端点',  False, '留空使用官方地址，国内代理如 https://your-proxy.com/v1/chat/completions'),
+    ],
+    'Claude': [
+        ('claude_key',      'API Key',  True,  'sk-ant-... (console.anthropic.com 获取)'),
+        ('claude_model',    '模型名称', False, 'claude-sonnet-4-6'),
+        ('claude_endpoint', 'API端点',  False, '留空使用官方地址，填代理如 https://your-proxy.com/v1/messages'),
+    ],
+    'DeepSeek': [
+        ('deepseek_key',      'API Key',  True,  'sk-... (platform.deepseek.com 获取)'),
+        ('deepseek_model',    '模型名称', False, 'deepseek-chat'),
+        ('deepseek_endpoint', 'API端点',  False, '留空使用官方地址'),
+    ],
+    'Mistral': [
+        ('mistral_key',      'API Key',  True,  '... (console.mistral.ai 获取)'),
+        ('mistral_model',    '模型名称', False, 'mistral-large-latest'),
+        ('mistral_endpoint', 'API端点',  False, '留空使用官方地址'),
+    ],
+    'Groq': [
+        ('groq_key',      'API Key',  True,  'gsk_... (console.groq.com 获取)'),
+        ('groq_model',    '模型名称', False, 'llama-3.3-70b-versatile'),
+        ('groq_endpoint', 'API端点',  False, '留空使用官方地址'),
+    ],
+    'Yi': [
+        ('yi_key',      'API Key',  True,  '... (platform.lingyiwanwu.com 获取)'),
+        ('yi_model',    '模型名称', False, 'yi-lightning'),
+        ('yi_endpoint', 'API端点',  False, '留空使用官方地址'),
+    ],
+    'Grok': [
+        ('grok_key',      'API Key',  True,  '... (console.x.ai 获取)'),
+        ('grok_model',    '模型名称', False, 'grok-2-latest'),
+        ('grok_endpoint', 'API端点',  False, '留空使用官方地址'),
+    ],
+    'Perplexity': [
+        ('perplexity_key',      'API Key',  True,  'pplx-... (perplexity.ai 获取)'),
+        ('perplexity_model',    '模型名称', False, 'llama-3.1-sonar-large-128k-online'),
+        ('perplexity_endpoint', 'API端点',  False, '留空使用官方地址'),
+    ],
+    'Together': [
+        ('together_key',      'API Key',  True,  '... (api.together.ai 获取)'),
+        ('together_model',    '模型名称', False, 'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo'),
+        ('together_endpoint', 'API端点',  False, '留空使用官方地址'),
+    ],
+    'Qwen': [
+        ('qwen_key',      'API Key',  True,  'sk-... (dashscope.aliyun.com 获取)'),
+        ('qwen_model',    '模型名称', False, 'qwen-turbo'),
+        ('qwen_endpoint', 'API端点',  False, '留空使用官方地址'),
+    ],
+    'ERNIE': [
+        ('ernie_key',      'API Key',  True,  '... (qianfan.cloud.baidu.com 获取)'),
+        ('ernie_model',    '模型名称', False, 'ernie-4.5-turbo-128k'),
+        ('ernie_endpoint', 'API端点',  False, '留空使用官方地址'),
+    ],
+    'Zhipu': [
+        ('zhipu_key',      'API Key',  True,  '... (open.bigmodel.cn 获取)'),
+        ('zhipu_model',    '模型名称', False, 'glm-4-flash'),
+        ('zhipu_endpoint', 'API端点',  False, '留空使用官方地址'),
+    ],
+    'Kimi': [
+        ('kimi_key',      'API Key',  True,  'sk-... (platform.moonshot.cn 获取)'),
+        ('kimi_model',    '模型名称', False, 'moonshot-v1-8k'),
+        ('kimi_endpoint', 'API端点',  False, '留空使用官方地址'),
+    ],
+    'MiniMax': [
+        ('minimax_key',      'API Key',  True,  '... (api.minimax.chat 获取)'),
+        ('minimax_model',    '模型名称', False, 'abab6.5s-chat'),
+        ('minimax_endpoint', 'API端点',  False, '留空使用官方地址'),
+    ],
+    'Doubao': [
+        ('doubao_key',      'API Key',  True,  '... (ark.cn-beijing.volces.com 获取)'),
+        ('doubao_model',    '模型名称', False, 'doubao-pro-32k（填入 endpoint ID）'),
+        ('doubao_endpoint', 'API端点',  False, '留空使用官方地址'),
+    ],
+    'Stepfun': [
+        ('stepfun_key',      'API Key',  True,  '... (platform.stepfun.com 获取)'),
+        ('stepfun_model',    '模型名称', False, 'step-1-8k'),
+        ('stepfun_endpoint', 'API端点',  False, '留空使用官方地址'),
+    ],
+    'Spark': [
+        ('spark_key',      'API Key',  True,  '... (xf-yun.com 开放平台获取)'),
+        ('spark_model',    '模型名称', False, 'lite'),
+        ('spark_endpoint', 'API端点',  False, '留空使用官方地址'),
+    ],
+    'Ollama': [
+        ('ollama_endpoint', '接口地址', False, 'http://localhost:11434/api/generate'),
+        ('ollama_model',    '模型名称', False, 'llama3'),
+    ],
 }
 
 _DEFAULT_CONFIG = {
@@ -80,6 +157,25 @@ _DEFAULT_CONFIG = {
     'doubao_key':       '',
     'stepfun_key':      '',
     'spark_key':        '',
+    # 自定义端点（留空使用官方地址）
+    'gemini_endpoint':     '',
+    'openai_endpoint':     '',
+    'claude_endpoint':     '',
+    'deepseek_endpoint':   '',
+    'mistral_endpoint':    '',
+    'groq_endpoint':       '',
+    'yi_endpoint':         '',
+    'grok_endpoint':       '',
+    'perplexity_endpoint': '',
+    'together_endpoint':   '',
+    'qwen_endpoint':       '',
+    'ernie_endpoint':      '',
+    'zhipu_endpoint':      '',
+    'kimi_endpoint':       '',
+    'minimax_endpoint':    '',
+    'doubao_endpoint':     '',
+    'stepfun_endpoint':    '',
+    'spark_endpoint':      '',
 }
 
 _ENV_KEY_MAP = {

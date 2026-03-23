@@ -1,5 +1,7 @@
-"""Anthropic Claude Provider —— 使用 x-api-key 鉴权与 Messages API"""
+"""Anthropic Claude Provider —— 使用 x-api-key 鉴权与 Messages API，支持自定义端点"""
 from agent.providers.base import BaseLLMProvider
+
+_DEFAULT_URL = 'https://api.anthropic.com/v1/messages'
 
 
 class AnthropicProvider(BaseLLMProvider):
@@ -8,7 +10,8 @@ class AnthropicProvider(BaseLLMProvider):
     def call(self, system: str, user: str, config: dict) -> tuple:
         api_key = config.get('claude_key', '')
         model = config.get('claude_model', 'claude-sonnet-4-6')
-        url = 'https://api.anthropic.com/v1/messages'
+        # 自定义端点优先（可用于代理 Anthropic API）
+        url = config.get('claude_endpoint', '').strip() or _DEFAULT_URL
         headers = {
             'x-api-key': api_key,
             'anthropic-version': '2023-06-01',

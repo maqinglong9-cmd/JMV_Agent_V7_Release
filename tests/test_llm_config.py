@@ -26,9 +26,8 @@ class TestLoadConfig:
         assert config['active_provider'] in PROVIDERS
 
     def test_env_var_overrides_file(self, tmp_path, monkeypatch):
-        """环境变量中的 API Key 应覆盖文件中的值"""
+        """环境���量中的 API Key 应覆盖文件中的值"""
         from ui import llm_config_data as lcs
-        # 创建一个临时配置文件
         cfg_path = str(tmp_path / 'test_config.json')
         with open(cfg_path, 'w') as f:
             json.dump({'gemini_key': 'from_file'}, f)
@@ -52,6 +51,15 @@ class TestLoadConfig:
         finally:
             lcs.CONFIG_FILE = original
 
+    def test_endpoint_fields_default_empty(self):
+        """所有自定义端点字段默认为空字符串"""
+        from ui.llm_config_data import _DEFAULT_CONFIG
+        endpoint_fields = [k for k in _DEFAULT_CONFIG if k.endswith('_endpoint')
+                           and not k.startswith('ollama')]
+        assert len(endpoint_fields) > 0
+        for field in endpoint_fields:
+            assert _DEFAULT_CONFIG[field] == '', f'{field} 默认值应为空字符串'
+
 
 class TestSaveConfig:
     def test_saves_to_file(self, tmp_path):
@@ -74,7 +82,7 @@ class TestSaveConfig:
             lcs.CONFIG_FILE = original
 
     def test_api_key_persisted(self, tmp_path):
-        """API Key 现在应该写入文件（不再只存在 env vars）"""
+        """API Key 应写入文件"""
         from ui import llm_config_data as lcs
         original = lcs.CONFIG_FILE
         lcs.CONFIG_FILE = str(tmp_path / 'config.json')
@@ -98,6 +106,23 @@ class TestSaveConfig:
             lcs.CONFIG_FILE = original
             monkeypatch.delenv('GEMINI_API_KEY', raising=False)
 
+    def test_custom_endpoint_saved(self, tmp_path):
+        """自定义端点字段应被持久化"""
+        from ui import llm_config_data as lcs
+        original = lcs.CONFIG_FILE
+        lcs.CONFIG_FILE = str(tmp_path / 'config.json')
+        try:
+            lcs.save_config({
+                'active_provider': 'OpenAI',
+                'openai_key': 'sk-test',
+                'openai_endpoint': 'https://my-proxy.com/v1/chat/completions',
+            })
+            with open(lcs.CONFIG_FILE, 'r') as f:
+                saved = json.load(f)
+            assert saved.get('openai_endpoint') == 'https://my-proxy.com/v1/chat/completions'
+        finally:
+            lcs.CONFIG_FILE = original
+
 
 class TestProviders:
     def test_all_providers_defined(self):
@@ -106,14 +131,20 @@ class TestProviders:
             assert prov in _PROVIDER_FIELDS
 
     def test_provider_fields_structure(self):
+        """每个供应商字段支持 3 元组或 4 元组（含 hint_text）"""
         from ui.llm_config_data import _PROVIDER_FIELDS
         for prov, fields in _PROVIDER_FIELDS.items():
             assert isinstance(fields, list)
             assert len(fields) >= 1
-            for field_key, label, is_secret in fields:
+            for field_entry in fields:
+                assert len(field_entry) in (3, 4), \
+                    f'{prov} 字段应为 3 或 4 元组'
+                field_key, label, is_secret = field_entry[0], field_entry[1], field_entry[2]
                 assert isinstance(field_key, str)
                 assert isinstance(label, str)
                 assert isinstance(is_secret, bool)
+                if len(field_entry) == 4:
+                    assert isinstance(field_entry[3], str), 'hint_text 应为字符串'
 
     def test_all_default_models_present(self):
         from ui.llm_config_data import _DEFAULT_CONFIG
@@ -122,3 +153,32 @@ class TestProviders:
         assert 'claude_model' in _DEFAULT_CONFIG
         assert 'deepseek_model' in _DEFAULT_CONFIG
         assert 'ollama_model' in _DEFAULT_CONFIG
+
+    def test_cloud_providers_have_endpoint_fields(self):
+        """云端供应商（非 Ollama）应在 _DEFAULT_CONFIG 中有对应端点字段"""
+        from ui.llm_config_data import _DEFAULT_CONFIG, PROVIDERS
+        cloud_providers = [p for p in PROVIDERS if p != 'Ollama']
+        for prov in cloud_providers:
+            endpoint_key = f'{prov.lower()}_endpoint'
+            assert endpoint_key in _DEFAULT_CONFIG, \
+                f'{prov} 缺少端点字段 {endpoint_key}'
+
+    def test_endpoint_fields_in_provider_fields(self):
+        """主要供应商（Gemini/OpenAI/Claude/DeepSeek）应在 _PROVIDER_FIELDS 中包含端点字段"""
+        from ui.llm_config_data import _PROVIDER_FIELDS
+        key_providers = ['Gemini', 'OpenAI', 'Claude', 'DeepSeek']
+        for prov in key_providers:
+            fields = _PROVIDER_FIELDS[prov]
+            field_keys = [f[0] for f in fields]
+            endpoint_key = f'{prov.lower()}_endpoint'
+            assert endpoint_key in field_keys, \
+                f'{prov} 的 _PROVIDER_FIELDS 中缺少端点字段 {endpoint_key}'
+
+    def test_hint_text_present_for_key_fields(self):
+        """API Key 字段应有 hint_text（格式提示）"""
+        from ui.llm_config_data import _PROVIDER_FIELDS
+        for prov, fields in _PROVIDER_FIELDS.items():
+            for field_entry in fields:
+                if len(field_entry) == 4 and field_entry[2]:  # is_secret=True
+                    hint = field_entry[3]
+                    assert len(hint) > 0, f'{prov} 的 API Key 字段缺少 hint_text'

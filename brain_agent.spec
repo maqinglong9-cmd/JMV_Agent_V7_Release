@@ -115,6 +115,7 @@ a = Analysis(
         'updater.version_checker',
         'updater.downloader',
         'updater.win_updater',
+        'updater.unix_updater',
         'updater.android_updater',
         # 升级 UI
         'ui.update_dialog',
@@ -132,6 +133,9 @@ a = Analysis(
         # 截图 + 语音输出
         'agent.screenshot_tool',
         'agent.voice_output',
+        # 底层操作模块（Android + Windows）
+        'agent.android_operator',
+        'agent.windows_operator',
         # 多 Agent 路由器
         'adapter.agent_router',
         # LLM 配置数据（无 Kivy 依赖）

@@ -234,6 +234,9 @@ class BrainAgentApp(App):
         Window.clearcolor = (0.06, 0.08, 0.12, 1)
         Window.minimum_width = 360
         Window.minimum_height = 600
+        # Android 软键盘：pan 模式整体平移界面，兼容性最佳，避免 below_target 在部分定制系统的布局错误
+        if is_android():
+            Window.softinput_mode = 'pan'
 
         try:
             root = RootLayout()
@@ -246,6 +249,27 @@ class BrainAgentApp(App):
             lambda dt: self._background_update_check(root._main_screen), 3
         )
         return root
+
+    def on_start(self):
+        self._request_android_permissions()
+
+    def _request_android_permissions(self):
+        """Android 运行时权限申请（Android 6.0+ 危险权限必须动态申请）。"""
+        if not is_android():
+            return
+        try:
+            from android.permissions import request_permissions, Permission  # type: ignore
+            request_permissions([
+                Permission.INTERNET,
+                Permission.CAMERA,
+                Permission.RECORD_AUDIO,
+                Permission.WRITE_EXTERNAL_STORAGE,
+                Permission.READ_EXTERNAL_STORAGE,
+                Permission.ACCESS_FINE_LOCATION,
+                Permission.ACCESS_COARSE_LOCATION,
+            ])
+        except Exception as e:
+            Logger.warning(f'BrainAgentApp: 权限申请失败（非 Android 环境）: {e}')
 
     def _background_update_check(self, main_screen):
         def _run():

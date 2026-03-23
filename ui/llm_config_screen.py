@@ -1,5 +1,7 @@
 """JMV智伴 LLM 配置界面 - 纯 Kivy 实现（适配 Android + Windows）
-无任何 Tkinter 依赖，可在 Android 上正常运行。
+无 ScrollView 版：移除 ScrollView 彻底解决 Android 触摸拦截问题。
+动态渲染：每次只创建当前供应商的字段（3个），直接放在 BoxLayout 中，无需滚动。
+供应商导航：用 ◀ / ▶ 按钮替换 Spinner，彻底规避 Android Spinner 触摸 BUG。
 """
 import threading
 
@@ -17,11 +19,9 @@ C_BTN_SAVE = (0.18, 0.58, 0.32, 1)
 C_BTN_TEST = (0.18, 0.28, 0.48, 1)
 
 from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.scrollview import ScrollView
 from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
-from kivy.uix.spinner import Spinner
 from kivy.graphics import Color, Rectangle, RoundedRectangle
 from kivy.clock import Clock
 
@@ -52,24 +52,26 @@ def _card_bg(widget, color, radius=8):
 
 
 class KeyField(BoxLayout):
-    """API Key 输入行，带显示/隐藏按钮"""
+    """API Key / 端点 / 模型输入行，带显示/隐藏按钮（仅密钥字段）"""
 
-    def __init__(self, label_text, field_key, is_secret=False, **kwargs):
+    def __init__(self, label_text, field_key, is_secret=False, hint_text='', **kwargs):
+        # Android 用更高的行高，确保触摸目标足够大
+        fh = dp(96) if is_android() else dp(74)
         super().__init__(
             orientation='vertical',
             size_hint_y=None,
+            height=fh,
             spacing=dp(4),
             **kwargs
         )
         self.field_key = field_key
         self.is_secret = is_secret
         self._hidden = is_secret
-        self.height = dp(80) if is_android() else dp(68)
 
         # 标签行
         lbl_row = BoxLayout(
             orientation='horizontal',
-            size_hint_y=None, height=dp(24)
+            size_hint_y=None, height=dp(26)
         )
         lbl = Label(
             text=label_text,
@@ -82,31 +84,38 @@ class KeyField(BoxLayout):
         self.add_widget(lbl_row)
 
         # 输入行
+        ih = dp(56) if is_android() else input_height()
         input_row = BoxLayout(
             orientation='horizontal',
             size_hint_y=None,
-            height=input_height(),
+            height=ih,
             spacing=dp(6),
         )
+        _default_hint = '点击此处输入 API Key...' if is_secret else '点击此处输入...'
         self.ti = TextInput(
-            hint_text='请输入...' if not is_secret else '请输入 API Key...',
+            hint_text=hint_text or _default_hint,
             multiline=False,
             font_size=font_body(),
             foreground_color=(0.88, 0.92, 0.96, 1),
+            background_normal='',
             background_color=C_INPUT_BG,
             hint_text_color=(0.40, 0.48, 0.62, 0.8),
             cursor_color=(*C_GREEN[:3], 1),
-            padding=[dp(10), dp(10)],
+            padding=[dp(12), dp(14)],
             password=is_secret,
+            input_type='text',
+            write_tab=False,
+            size_hint_x=1,
         )
         input_row.add_widget(self.ti)
 
         if is_secret:
+            eye_size = dp(58) if is_android() else touch_target()
             self._eye_btn = Button(
                 text='👁',
                 font_size=font_body(),
                 size_hint_x=None,
-                width=touch_target(),
+                width=eye_size,
                 background_normal='',
                 background_color=C_SECTION,
                 color=C_SUBTEXT,
@@ -114,12 +123,56 @@ class KeyField(BoxLayout):
             self._eye_btn.bind(on_press=self._toggle_visibility)
             input_row.add_widget(self._eye_btn)
 
+            # Android 上 password 字段无法通过长按菜单粘贴，提供专用粘贴按钮
+            if is_android():
+                paste_btn = Button(
+                    text='📋',
+                    font_size=font_body(),
+                    size_hint_x=None,
+                    width=dp(58),
+                    background_normal='',
+                    background_color=(0.14, 0.20, 0.34, 1),
+                    color=C_SUBTEXT,
+                )
+                paste_btn.bind(on_press=self._paste_from_clipboard)
+                input_row.add_widget(paste_btn)
+
         self.add_widget(input_row)
+
+    def on_touch_down(self, touch):
+        """Android: 点击 KeyField 任意位置都聚焦到输入框。
+        只在触摸点不在 TextInput 自身范围内时才调度延迟聚焦，
+        避免与 TextInput 的自然获焦冲突，防止 IME 双重初始化导致输入失败。
+        """
+        if self.collide_point(*touch.pos):
+            if not (self.is_secret and
+                    hasattr(self, '_eye_btn') and
+                    self._eye_btn.collide_point(*touch.pos)):
+                # 仅当触摸点不在 TextInput 自身上时才延迟设焦，
+                # 触摸在 TextInput 上时让其自然获焦，避免双重 focus 干扰 IME
+                if not self.ti.collide_point(*touch.pos):
+                    Clock.schedule_once(lambda dt: setattr(self.ti, 'focus', True), 0.15)
+        return super().on_touch_down(touch)
 
     def _toggle_visibility(self, _):
         self._hidden = not self._hidden
         self.ti.password = self._hidden
         self._eye_btn.color = C_SUBTEXT if self._hidden else C_GREEN
+
+    def _paste_from_clipboard(self, _):
+        """Android 专用：从系统剪贴板粘贴到 API Key 输入框。
+        解决 password=True 字段无法通过长按菜单粘贴的问题。
+        注意：此操作替换整个文本内容，适用于 API Key 整段粘贴场景。
+        """
+        try:
+            from kivy.core.clipboard import Clipboard
+            text = Clipboard.paste()
+            if text:
+                self.ti.text = text.strip()
+                self.ti.focus = True
+        except Exception as e:
+            from kivy.logger import Logger
+            Logger.warning(f'KeyField: 粘贴失败（可能是 Android 剪贴板权限限制）: {e}')
 
     @property
     def text(self) -> str:
@@ -130,47 +183,33 @@ class KeyField(BoxLayout):
         self.ti.text = val or ''
 
 
-class SectionHeader(BoxLayout):
-    """带色条的区块标题"""
-
-    def __init__(self, title, **kwargs):
-        super().__init__(
-            orientation='horizontal',
-            size_hint_y=None,
-            height=dp(36),
-            **kwargs
-        )
-        bar = BoxLayout(size_hint_x=None, width=dp(3))
-        with bar.canvas.before:
-            Color(*C_GREEN)
-            r = Rectangle(pos=bar.pos, size=bar.size)
-        bar.bind(pos=lambda *_: setattr(r, 'pos', bar.pos))
-        bar.bind(size=lambda *_: setattr(r, 'size', bar.size))
-
-        lbl = Label(
-            text=f'  {title}',
-            font_size=font_label(),
-            color=C_SUBTEXT,
-            bold=True,
-            halign='left', valign='middle',
-        )
-        lbl.bind(size=lbl.setter('text_size'))
-        self.add_widget(bar)
-        self.add_widget(lbl)
-        _bg(self, C_SECTION)
-
-
 class LLMConfigScreen(BoxLayout):
-    """全屏 LLM 配置界面（纯 Kivy，无 Tkinter 依赖）"""
+    """全屏 LLM 配置界面
+    - 无 ScrollView：避免 Android 触摸拦截
+    - 用 ◀ / ▶ 按钮导航供应商，避免 Android Spinner BUG
+    - 动态渲染：只创建当前供应商的字段（最多 3 个）
+    """
 
     def __init__(self, on_saved=None, **kwargs):
         super().__init__(orientation='vertical', spacing=0, **kwargs)
         self._on_saved = on_saved
         self._config = load_config()
         self._fields: dict[str, KeyField] = {}
-        self._provider_sections: dict[str, BoxLayout] = {}
+        self._provider_idx = self._get_provider_idx(
+            self._config.get('active_provider', 'Gemini')
+        )
         _bg(self, C_BG)
         self._build_ui()
+
+    def _get_provider_idx(self, provider: str) -> int:
+        try:
+            return PROVIDERS.index(provider)
+        except ValueError:
+            return 0
+
+    @property
+    def _active_provider(self) -> str:
+        return PROVIDERS[self._provider_idx]
 
     def _build_ui(self):
         # ── 标题栏 ─────────────────────────────────────
@@ -191,94 +230,101 @@ class LLMConfigScreen(BoxLayout):
         header.add_widget(title_lbl)
         self.add_widget(header)
 
-        # ── 可滚动内容区 ────────────────────────────────
-        scroll = ScrollView(do_scroll_x=False)
-        content = BoxLayout(
-            orientation='vertical',
+        # ── 供应商导航栏（◀ 名称 ▶）─────────────────────
+        # 用按钮替换 Spinner，彻底解决 Android Spinner 触摸问题
+        nav_h = dp(60) if is_android() else dp(52)
+        nav_bar = BoxLayout(
             size_hint_y=None,
-            spacing=dp(8),
-            padding=[padding_h(), padding_v(), padding_h(), padding_v()],
-        )
-        content.bind(minimum_height=content.setter('height'))
-        _bg(content, C_BG)
-
-        # ── 供应商选择 ──────────────────────────────────
-        content.add_widget(SectionHeader('选择 AI 供应商'))
-
-        provider_card = BoxLayout(
-            orientation='vertical',
-            size_hint_y=None,
-            height=dp(56),
-            padding=[dp(8), dp(6)],
-        )
-        _card_bg(provider_card, C_CARD)
-
-        provider_row = BoxLayout(
-            orientation='horizontal',
-            size_hint_y=None,
-            height=dp(44),
+            height=nav_h,
+            padding=[padding_h(), dp(6)],
             spacing=dp(8),
         )
+        _bg(nav_bar, (0.10, 0.14, 0.22, 1))
+
         prov_lbl = Label(
-            text='当前供应商:',
+            text='供应商:',
             font_size=font_body(),
             color=C_TEXT,
             size_hint_x=None,
-            width=dp(90),
+            width=dp(64),
             halign='left', valign='middle',
         )
         prov_lbl.bind(size=prov_lbl.setter('text_size'))
 
-        self._provider_spinner = Spinner(
-            text=self._config.get('active_provider', 'Gemini'),
-            values=PROVIDERS,
-            font_size=font_body(),
+        nav_btn_w = dp(56) if is_android() else dp(44)
+        nav_btn_h = dp(48) if is_android() else dp(40)
+
+        prev_btn = Button(
+            text='◀',
+            font_size=font_btn(),
+            size_hint_x=None,
+            width=nav_btn_w,
+            height=nav_btn_h,
             background_normal='',
             background_color=(0.18, 0.24, 0.36, 1),
             color=C_TEXT,
-            size_hint_x=1,
-            height=dp(44),
         )
-        self._provider_spinner.bind(text=self._on_provider_change)
+        prev_btn.bind(on_press=lambda _: self._prev_provider())
 
-        provider_row.add_widget(prov_lbl)
-        provider_row.add_widget(self._provider_spinner)
-        provider_card.add_widget(provider_row)
-        content.add_widget(provider_card)
+        self._provider_name_lbl = Label(
+            text=self._active_provider,
+            font_size=font_btn(),
+            bold=True,
+            color=C_GREEN,
+            halign='center', valign='middle',
+        )
+        self._provider_name_lbl.bind(
+            size=self._provider_name_lbl.setter('text_size')
+        )
 
-        # ── 各供应商配置区（动态显示/隐藏）────────────────
-        for provider, fields in _PROVIDER_FIELDS.items():
-            section = BoxLayout(
-                orientation='vertical',
-                size_hint_y=None,
-                spacing=dp(6),
-                padding=[dp(8), dp(6)],
-            )
-            _card_bg(section, C_CARD)
+        next_btn = Button(
+            text='▶',
+            font_size=font_btn(),
+            size_hint_x=None,
+            width=nav_btn_w,
+            height=nav_btn_h,
+            background_normal='',
+            background_color=(0.18, 0.24, 0.36, 1),
+            color=C_TEXT,
+        )
+        next_btn.bind(on_press=lambda _: self._next_provider())
 
-            for field_key, label_text, is_secret in fields:
-                kf = KeyField(
-                    label_text=f'{provider} {label_text}',
-                    field_key=field_key,
-                    is_secret=is_secret,
-                )
-                kf.text = self._config.get(field_key, '')
-                section.add_widget(kf)
-                self._fields[field_key] = kf
+        # 页码指示（如 3/19）
+        self._page_lbl = Label(
+            text=self._page_text(),
+            font_size=font_small(),
+            color=C_SUBTEXT,
+            size_hint_x=None,
+            width=dp(36),
+            halign='center', valign='middle',
+        )
+        self._page_lbl.bind(size=self._page_lbl.setter('text_size'))
 
-            # 计算总高度
-            section.height = len(fields) * (dp(80) if is_android() else dp(68)) + dp(12)
-            self._provider_sections[provider] = section
-            content.add_widget(section)
+        nav_bar.add_widget(prov_lbl)
+        nav_bar.add_widget(prev_btn)
+        nav_bar.add_widget(self._provider_name_lbl)
+        nav_bar.add_widget(next_btn)
+        nav_bar.add_widget(self._page_lbl)
+        self.add_widget(nav_bar)
 
-        scroll.add_widget(content)
-        self.add_widget(scroll)
+        # ── 字段区（无 ScrollView，直接 BoxLayout）─────
+        # 最多 3 个字段，Android 上每个 ~96dp，加 padding 约 320dp，
+        # 任何手机屏幕都容得下，不需要滚动。
+        self._content = BoxLayout(
+            orientation='vertical',
+            size_hint_y=1,          # 填满剩余空间
+            spacing=dp(12),
+            padding=[padding_h(), dp(12), padding_h(), dp(8)],
+        )
+        _bg(self._content, C_BG)
+        self.add_widget(self._content)
 
         # ── 底部按钮区 ──────────────────────────────────
+        btn_bar_h = button_height() + dp(16)
         btn_row = BoxLayout(
             orientation='horizontal',
             size_hint_y=None,
-            height=button_height() + dp(16),
+            height=btn_bar_h,
             spacing=dp(8),
             padding=[padding_h(), dp(8)],
         )
@@ -321,22 +367,86 @@ class LLMConfigScreen(BoxLayout):
         btn_row.add_widget(save_btn)
         self.add_widget(btn_row)
 
-        # 初始化显示
-        self._on_provider_change(None, self._config.get('active_provider', 'Gemini'))
+        # 渲染初始供应商的字段
+        self._render_provider_fields(self._active_provider)
 
-    def _on_provider_change(self, spinner, provider):
-        """切换供应商时显示/隐藏对应配置区"""
-        for prov, section in self._provider_sections.items():
-            section.opacity = 1 if prov == provider else 0
-            section.height = (
-                (len(_PROVIDER_FIELDS[prov]) * (dp(80) if is_android() else dp(68)) + dp(12))
-                if prov == provider else 0
+    # ── 供应商导航 ──────────────────────────────────────
+
+    def _page_text(self) -> str:
+        return f'{self._provider_idx + 1}/{len(PROVIDERS)}'
+
+    def _prev_provider(self):
+        self._switch_to((self._provider_idx - 1) % len(PROVIDERS))
+
+    def _next_provider(self):
+        self._switch_to((self._provider_idx + 1) % len(PROVIDERS))
+
+    def _switch_to(self, idx: int):
+        if idx == self._provider_idx:
+            return
+        # 保存当前字段值
+        for field_key, kf in self._fields.items():
+            self._config[field_key] = kf.text
+        self._provider_idx = idx
+        self._provider_name_lbl.text = self._active_provider
+        self._page_lbl.text = self._page_text()
+        self._render_provider_fields(self._active_provider)
+
+    # ── 字段渲染 ────────────────────────────────────────
+
+    def _render_provider_fields(self, provider: str):
+        """销毁旧字段，只创建当前供应商的字段"""
+        self._content.clear_widgets()
+        self._fields.clear()
+
+        fields = _PROVIDER_FIELDS.get(provider, [])
+        if not fields:
+            lbl = Label(
+                text=f'[{provider}] 暂无可配置字段',
+                font_size=font_body(),
+                color=C_SUBTEXT,
             )
+            self._content.add_widget(lbl)
+            return
+
+        # 供应商标题（小标注）
+        sec_title = Label(
+            text=f'[{provider}] 配置',
+            font_size=font_label(),
+            color=C_GREEN,
+            bold=True,
+            halign='left', valign='middle',
+            size_hint_y=None,
+            height=dp(28),
+        )
+        sec_title.bind(size=sec_title.setter('text_size'))
+        self._content.add_widget(sec_title)
+
+        for field_entry in fields:
+            if len(field_entry) == 4:
+                field_key, label_text, is_secret, hint_text = field_entry
+            else:
+                field_key, label_text, is_secret = field_entry
+                hint_text = ''
+
+            kf = KeyField(
+                label_text=label_text,
+                field_key=field_key,
+                is_secret=is_secret,
+                hint_text=hint_text,
+            )
+            kf.text = self._config.get(field_key, '')
+            self._content.add_widget(kf)
+            self._fields[field_key] = kf
+
+        # 底部填充（让字段不会撑到屏幕最底）
+        self._content.add_widget(BoxLayout())  # spacer
+
+    # ── 配置收集 / 保存 / 测试 ──────────────────────────
 
     def _collect_config(self) -> dict:
-        """从 UI 控件收集当前配置"""
         config = dict(self._config)
-        config['active_provider'] = self._provider_spinner.text
+        config['active_provider'] = self._active_provider
         for field_key, kf in self._fields.items():
             config[field_key] = kf.text
         return config
@@ -356,9 +466,9 @@ class LLMConfigScreen(BoxLayout):
         Clock.schedule_once(lambda dt: setattr(self._status_lbl, 'text', ''), 4)
 
     def _test_connection(self):
-        """后台测试 LLM 连接"""
-        self._set_status('⏳ 连接中...', C_YELLOW)
         config = self._collect_config()
+        provider = config.get('active_provider', 'Gemini')
+        self._set_status(f'⏳ 正在连接 {provider}...', C_YELLOW)
 
         def _run():
             try:
@@ -369,10 +479,10 @@ class LLMConfigScreen(BoxLayout):
                     '链路测试'
                 )
                 if status == 'SUCCESS' and resp:
-                    msg = f'✓ 已连接 {config["active_provider"]}'
+                    msg = f'✓ 已连接 {provider}'
                     color = C_GREEN
                 else:
-                    msg = f'✗ 连接失败: {status}'
+                    msg = f'✗ {provider} 失败: {status}'
                     color = C_RED
             except Exception as e:
                 msg = f'✗ 异常: {e}'

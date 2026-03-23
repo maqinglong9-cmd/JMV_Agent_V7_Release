@@ -23,12 +23,14 @@ def apply_update(
 
     - Windows: 下载新 EXE，通过 .bat 脚本热替换后重启
     - Android: 下载 APK，调用系统安装器
-    - 其他平台: 抛出 NotImplementedError
+    - macOS / Linux: 下载新二进制，通过 shell 脚本热替换后重启
     """
     if _is_android():
         from updater.android_updater import apply_update as _apply
     elif sys.platform == "win32":
         from updater.win_updater import apply_update as _apply
+    elif sys.platform in ("darwin", "linux"):
+        from updater.unix_updater import apply_update as _apply
     else:
         raise NotImplementedError(f"当前平台暂不支持自动升级: {sys.platform}")
 

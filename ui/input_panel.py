@@ -192,7 +192,7 @@ class InputPanel(BoxLayout):
         self._mode_btn.bind(on_press=self._toggle_mode)
 
         self._smart_input = TextInput(
-            hint_text='描述你感知到的场景（AI 自动拆分视觉/听觉/触觉）',
+            hint_text='输入你的任务或问题，AI 自动理解并执行...',
             multiline=False,
             font_size=font_body(),
             foreground_color=(0.88, 0.92, 0.96, 1),
@@ -268,7 +268,7 @@ class InputPanel(BoxLayout):
 
         # ── 运行按钮 dp(52) ──────────────────────────────
         self.run_btn = Button(
-            text='▶  启动全脑感知',
+            text='▶  执行任务',
             size_hint_y=None, height=_H_RUN,
             background_normal='',
             background_color=C_BTN_RUN,
@@ -354,7 +354,7 @@ class InputPanel(BoxLayout):
     def _after_split(self, visual: str, audio: str, tactile: str):
         self.run_btn.disabled = False
         self.run_btn.background_color = C_BTN_RUN
-        self.run_btn.text = '▶  启动全脑感知'
+        self.run_btn.text = '▶  执行任务'
         self._start_run(visual, audio, tactile)
 
     def _start_run(self, visual: str, audio: str, tactile: str):
@@ -435,4 +435,4 @@ class InputPanel(BoxLayout):
     def enable(self):
         self.run_btn.disabled = False
         self.run_btn.background_color = C_BTN_RUN
-        self.run_btn.text = '▶  启动全脑感知'
+        self.run_btn.text = '▶  执行任务'

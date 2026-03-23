@@ -1,14 +1,18 @@
 {
   "version": "1.2.0",
-  "release_notes": "JMV智伴 1.2.0 真实智能版\n- 修复: 设置页面点击闪退问题（颜色常量缺失导致 NameError）\n- 新增: 真实神经网络计算（SynapticNetwork [8→12→6→4] 前馈网络）\n- 新增: 8维语义特征提取（视觉/听觉/触觉/情感/认知/紧迫/社交/运动）\n- 新增: 每个脑区独立突触网络（唯一种子，真实激活强度计算）\n- 新增: 20个主流 LLM 供应商（OpenAI/Claude/Gemini/DeepSeek/Mistral/Groq/Yi/Grok/Perplexity/Together/Qwen/ERNIE/Zhipu/Kimi/MiniMax/Doubao/Stepfun/Spark/Ollama）\n- 重构: LLM 供应商模块化架构（agent/providers/ 独立包）\n- 新增: 设置页供应商选择器支持全部 19 个云端 + Ollama 本地\n- 新增: API Key 环境变量自动同步（18个变量映射）\n- 优化: 代码清理（移除孤立死代码）",
+  "release_notes": "v1.2.0: 修复Android端无法填写API Key：移除ScrollView解决触摸拦截，用◀/▶按钮替换Spinner，TextInput聚焦优化",
   "assets": {
     "windows": {
       "url": "https://github.com/maqinglong9-cmd/JMV_Agent_V7_Release/releases/download/v1.2.0/BrainAgent.exe",
-      "sha256": "7118e284b36a70156661e331faa0f6e9c540534566ab9b42da8c525809b8bc16"
+      "sha256": "018f22fe0f241dd642fe8194e6a08276ee1044b0617804db59530878d540fcb9"
     },
     "android": {
       "url": "https://github.com/maqinglong9-cmd/JMV_Agent_V7_Release/releases/download/v1.2.0/jmvagent-1.2.0-release-signed.apk",
-      "sha256": "0f2182be75cee909073727ab4aee6bb05e762644a29f4846e5e1e0cd81d44e47"
+      "sha256": "492a51710d23ddb6df5f13a58d754a207274eb39b7bcca0a8a12ad14b7e41578"
+    },
+    "linux": {
+      "url": "https://github.com/maqinglong9-cmd/JMV_Agent_V7_Release/releases/download/v1.2.0/BrainAgent_linux",
+      "sha256": "cd526afe3fec1c39c8bdd2feea0a59b0397110f65348f7896c455c05f8f223aa"
     }
   }
 }

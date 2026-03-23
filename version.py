@@ -1,6 +1,6 @@
 """JMV智伴 版本常量 - 所有模块通过此文件获取当前版本号"""
 
-__version__ = "1.1.0"
+__version__ = "1.2.1"
 APP_NAME    = "JMV智伴"
 PACKAGE_ID  = "org.jmv.jmvagent"   # 与 buildozer.spec 保持一致
 

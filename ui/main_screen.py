@@ -173,7 +173,7 @@ class MainScreen(BoxLayout):
         self.add_widget(self._build_mode_row())
 
         # ── 脑区区块标题 24dp ─────────────────────────────
-        self.add_widget(SectionLabel('脑区激活'))
+        self.add_widget(SectionLabel('任务分析'))
 
         # ── 脑区仪表盘 88dp ───────────────────────────────
         self.dashboard = BrainDashboard()
@@ -187,7 +187,7 @@ class MainScreen(BoxLayout):
         self.add_widget(self.progress)
 
         # ── 日志区块标题 24dp ─────────────────────────────
-        self.add_widget(SectionLabel('感知日志'))
+        self.add_widget(SectionLabel('执行日志'))
 
         # ── 日志区（填满剩余空间）────────────────────────
         self.log_viewer = LogViewer(size_hint_y=1)
@@ -290,7 +290,7 @@ class MainScreen(BoxLayout):
     def _on_done(self, _):
         self.progress.value = 100
         self.dashboard.reset_all()
-        self.log_viewer.append('✓ 全脑感知完成，已写入长期记忆。')
+        self.log_viewer.append('✓ 任务执行完成，已写入长期记忆。')
         self.input_panel.enable()
         if self.input_panel.voice_enabled and self._last_steps:
             from agent.voice_output import speak_async

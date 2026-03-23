@@ -1,0 +1,187 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  # ── Windows EXE 构建 ─────────────────────────────────────
+  build-windows:
+    name: Build Windows EXE
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install kivy[base] pyinstaller
+          pip install -r requirements.txt
+
+      - name: Build EXE with PyInstaller
+        run: |
+          python -m PyInstaller brain_agent.spec --noconfirm
+
+      - name: Verify EXE exists
+        run: |
+          if (!(Test-Path "dist\BrainAgent.exe")) {
+            Write-Error "EXE not found in dist/"
+            exit 1
+          }
+          Write-Host "EXE built: $(Get-Item dist\BrainAgent.exe | Select-Object -ExpandProperty Length) bytes"
+        shell: pwsh
+
+      - name: Upload Windows EXE artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe
+          path: dist/BrainAgent.exe
+          retention-days: 1
+
+  # ── Android APK 构建 ─────────────────────────────────────
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            git zip unzip openjdk-17-jdk \
+            libffi-dev libssl-dev \
+            autoconf libtool pkg-config \
+            zlib1g-dev libncurses5-dev \
+            libsqlite3-dev libreadline-dev \
+            libbz2-dev libgdbm-dev liblzma-dev
+
+      - name: Install Python build tools
+        run: |
+          pip install --upgrade pip
+          pip install buildozer cython==0.29.36
+
+      - name: Set up Android SDK / NDK (buildozer cache)
+        uses: actions/cache@v4
+        with:
+          path: ~/.buildozer
+          key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
+          restore-keys: |
+            buildozer-${{ runner.os }}-
+
+      - name: Build Android APK (release)
+        run: |
+          chmod +x build_android.sh
+          ./build_android.sh --release
+        env:
+          ANDROIDSDK: ${{ github.workspace }}/.buildozer/android/platform/android-sdk
+          ANDROIDNDK: ${{ github.workspace }}/.buildozer/android/platform/android-ndk-r25b
+          ANDROIDAPI: "33"
+          ANDROIDMINAPI: "21"
+
+      - name: Find and rename APK
+        id: find_apk
+        run: |
+          APK=$(find bin/ -name "*.apk" | head -1)
+          if [ -z "$APK" ]; then
+            echo "ERROR: No APK found in bin/"
+            exit 1
+          fi
+          echo "apk_path=$APK" >> $GITHUB_OUTPUT
+          echo "APK built: $APK ($(du -h $APK | cut -f1))"
+
+      - name: Upload Android APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: ${{ steps.find_apk.outputs.apk_path }}
+          retention-days: 1
+
+  # ── 发布 Release ─────────────────────────────────────────
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-22.04
+    needs: [build-windows, build-android]
+    # Android 构建较重，允许仅 Windows 成功时也可发布（APK 可选）
+    if: always() && needs.build-windows.result == 'success'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Get version from tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#v}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Release version: $VERSION (tag: $TAG)"
+
+      - name: Download Windows EXE
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-exe
+          path: dist/
+
+      - name: Download Android APK (optional)
+        if: needs.build-android.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: android-apk
+          path: dist/
+
+      - name: List dist contents
+        run: ls -lh dist/
+
+      - name: Generate latest.json
+        run: |
+          python scripts/release.py --notes "JMV智伴 ${{ steps.version.outputs.version }} 正式版"
+
+      - name: Show latest.json
+        run: cat latest.json
+
+      - name: Create GitHub Release and upload assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # 收集待上传文件
+          ASSETS=""
+          for f in dist/BrainAgent.exe dist/*.apk latest.json; do
+            [ -f "$f" ] && ASSETS="$ASSETS $f"
+          done
+
+          gh release create "$TAG" \
+            --title "JMV智伴 $VERSION" \
+            --notes "$(cat <<'EOF'
+          ## JMV智伴 $VERSION 正式版
+
+          ### 下载
+          - **Windows**: 下载 `BrainAgent.exe` 直接运行
+          - **Android**: 下载 APK 安装（需允许未知来源）
+
+          ### 更新检测
+          应用内「↑ 检查更新」按钮可自动检测新版本。
+          EOF
+          )" \
+            $ASSETS

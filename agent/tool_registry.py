@@ -40,6 +40,30 @@ class ToolRegistry:
         self.register("CALL_TOOL_SHELL",      self._tool_shell)
         # 保留旧名称兼容性（指向翻译工具）
         self.register("CALL_TOOL_SPACESHIP",  self._tool_translate)
+        # Android 底层操作工具（12个）
+        self.register("CALL_TOOL_ANDROID_LAUNCH",     self._android_launch)
+        self.register("CALL_TOOL_ANDROID_STOP",       self._android_stop)
+        self.register("CALL_TOOL_ANDROID_TAP",        self._android_tap)
+        self.register("CALL_TOOL_ANDROID_SWIPE",      self._android_swipe)
+        self.register("CALL_TOOL_ANDROID_TYPE",       self._android_type)
+        self.register("CALL_TOOL_ANDROID_KEY",        self._android_key)
+        self.register("CALL_TOOL_ANDROID_SCREENSHOT", self._android_screenshot)
+        self.register("CALL_TOOL_ANDROID_UI_DUMP",    self._android_ui_dump)
+        self.register("CALL_TOOL_ANDROID_PACKAGES",   self._android_packages)
+        self.register("CALL_TOOL_ANDROID_SYSINFO",    self._android_sysinfo)
+        self.register("CALL_TOOL_ANDROID_SETTING",    self._android_setting)
+        self.register("CALL_TOOL_ANDROID_BROADCAST",  self._android_broadcast)
+        # Windows 底层操作工具（10个）
+        self.register("CALL_TOOL_WIN_FILE_READ",      self._win_file_read)
+        self.register("CALL_TOOL_WIN_FILE_WRITE",     self._win_file_write)
+        self.register("CALL_TOOL_WIN_FILE_LIST",      self._win_file_list)
+        self.register("CALL_TOOL_WIN_REG_READ",       self._win_reg_read)
+        self.register("CALL_TOOL_WIN_REG_WRITE",      self._win_reg_write)
+        self.register("CALL_TOOL_WIN_PROCESS_LIST",   self._win_process_list)
+        self.register("CALL_TOOL_WIN_PROCESS_KILL",   self._win_process_kill)
+        self.register("CALL_TOOL_WIN_RUN",            self._win_run)
+        self.register("CALL_TOOL_WIN_CLIPBOARD",      self._win_clipboard)
+        self.register("CALL_TOOL_WIN_SYSINFO",        self._win_sysinfo)
 
     def register(self, name: str, fn: Callable[[str], str]) -> None:
         self._tools[name] = fn
@@ -347,3 +371,259 @@ class ToolRegistry:
 
     def list_tools(self) -> list:
         return list(self._tools.keys())
+
+    # ── Android 工具实现 ─────────────────────────────────────────────────────
+
+    @staticmethod
+    def _get_android_op():
+        from agent.android_operator import AndroidOperator
+        return AndroidOperator()
+
+    def _android_launch(self, params: str) -> str:
+        """启动 App。params: 包名 [Activity]"""
+        parts = params.strip().split(None, 1)
+        package = parts[0] if parts else ''
+        if not package:
+            return "[Android] 参数错误：缺少包名"
+        activity = parts[1].strip() if len(parts) > 1 else ''
+        op = self._get_android_op()
+        ok, out = op.launch_app(package, activity)
+        prefix = "[Android][启动]" if ok else "[Android][启动][错误]"
+        return f"{prefix} {out or package}"
+
+    def _android_stop(self, params: str) -> str:
+        """强制停止 App。params: 包名"""
+        package = params.strip()
+        if not package:
+            return "[Android] 参数错误：缺少包名"
+        op = self._get_android_op()
+        ok, out = op.stop_app(package)
+        prefix = "[Android][停止]" if ok else "[Android][停止][错误]"
+        return f"{prefix} {out or package}"
+
+    def _android_tap(self, params: str) -> str:
+        """点击屏幕。params: x y"""
+        parts = params.strip().split()
+        if len(parts) < 2:
+            return "[Android] 参数错误：需要 x y 坐标"
+        try:
+            x, y = int(parts[0]), int(parts[1])
+        except ValueError:
+            return "[Android] 参数错误：坐标必须为整数"
+        op = self._get_android_op()
+        ok, out = op.tap(x, y)
+        prefix = "[Android][点击]" if ok else "[Android][点击][错误]"
+        return f"{prefix} ({x},{y}) {out}"
+
+    def _android_swipe(self, params: str) -> str:
+        """滑动屏幕。params: x1 y1 x2 y2 [duration_ms]"""
+        parts = params.strip().split()
+        if len(parts) < 4:
+            return "[Android] 参数错误：需要 x1 y1 x2 y2"
+        try:
+            x1, y1, x2, y2 = int(parts[0]), int(parts[1]), int(parts[2]), int(parts[3])
+            dur = int(parts[4]) if len(parts) > 4 else 300
+        except ValueError:
+            return "[Android] 参数错误：坐标必须为整数"
+        op = self._get_android_op()
+        ok, out = op.swipe(x1, y1, x2, y2, dur)
+        prefix = "[Android][滑动]" if ok else "[Android][滑动][错误]"
+        return f"{prefix} {out}"
+
+    def _android_type(self, params: str) -> str:
+        """输入文字。params: 文字内容"""
+        text = params.strip()
+        if not text:
+            return "[Android] 参数错误：文字为空"
+        op = self._get_android_op()
+        ok, out = op.type_text(text)
+        prefix = "[Android][输入]" if ok else "[Android][输入][错误]"
+        return f"{prefix} {out}"
+
+    def _android_key(self, params: str) -> str:
+        """按下按键。params: keycode (整数或名称如 HOME)"""
+        code = params.strip()
+        if not code:
+            return "[Android] 参数错误：缺少 keycode"
+        try:
+            keycode = int(code)
+        except ValueError:
+            keycode = code
+        op = self._get_android_op()
+        ok, out = op.press_key(keycode)
+        prefix = "[Android][按键]" if ok else "[Android][按键][错误]"
+        return f"{prefix} {out}"
+
+    def _android_screenshot(self, params: str) -> str:
+        """截图。params: [保存路径]"""
+        save_path = params.strip()
+        op = self._get_android_op()
+        ok, out = op.screenshot(save_path)
+        prefix = "[Android][截图]" if ok else "[Android][截图][错误]"
+        return f"{prefix} {out}"
+
+    def _android_ui_dump(self, params: str) -> str:
+        """获取 UI 层级。"""
+        op = self._get_android_op()
+        ok, out = op.get_ui_hierarchy()
+        prefix = "[Android][UI层级]" if ok else "[Android][UI层级][错误]"
+        return f"{prefix}\n{out[:1000]}"
+
+    def _android_packages(self, params: str) -> str:
+        """列出已安装包。params: [过滤关键字]"""
+        op = self._get_android_op()
+        pkgs = op.list_packages(params.strip())
+        return f"[Android][包列表] 共 {len(pkgs)} 个：\n" + "\n".join(pkgs[:50])
+
+    def _android_sysinfo(self, params: str) -> str:
+        """获取 Android 系统信息。"""
+        op = self._get_android_op()
+        info = op.get_system_info()
+        lines = [f"[Android][系统信息]"]
+        for k, v in info.items():
+            if k != "raw":
+                lines.append(f"  {k}: {v}")
+        return "\n".join(lines)
+
+    def _android_setting(self, params: str) -> str:
+        """设置 Android 系统设置。params: namespace key value"""
+        parts = params.strip().split(None, 2)
+        if len(parts) < 3:
+            return "[Android] 参数错误：需要 namespace key value"
+        ns, key, val = parts[0], parts[1], parts[2]
+        op = self._get_android_op()
+        ok, out = op.set_setting(ns, key, val)
+        prefix = "[Android][设置]" if ok else "[Android][设置][错误]"
+        return f"{prefix} {ns}/{key}={val} {out}"
+
+    def _android_broadcast(self, params: str) -> str:
+        """发送 Android 广播。params: action [--es/--ei key val ...]"""
+        parts = params.strip().split(None, 1)
+        action = parts[0] if parts else ''
+        if not action:
+            return "[Android] 参数错误：缺少 action"
+        op = self._get_android_op()
+        ok, out = op.send_broadcast(action)
+        prefix = "[Android][广播]" if ok else "[Android][广播][错误]"
+        return f"{prefix} {out}"
+
+    # ── Windows 工具实现 ──────────────────────────────────────────────────────
+
+    @staticmethod
+    def _get_win_op():
+        from agent.windows_operator import WindowsOperator
+        return WindowsOperator()
+
+    def _win_file_read(self, params: str) -> str:
+        """读取文件。params: 文件路径"""
+        path = params.strip()
+        if not path:
+            return "[Windows] 参数错误：缺少路径"
+        op = self._get_win_op()
+        ok, content = op.read_file(path)
+        if ok:
+            preview = content[:500] + ('...' if len(content) > 500 else '')
+            return f"[Windows][读取] {path}\n{preview}"
+        return f"[Windows][读取][错误] {content}"
+
+    def _win_file_write(self, params: str) -> str:
+        """写入文件。params: 路径 内容"""
+        match = re.search(r'(\S+)\s+(.*)', params.strip(), re.DOTALL)
+        if not match:
+            return "[Windows] 参数错误：格式为 <路径> <内容>"
+        path, content = match.group(1), match.group(2)
+        op = self._get_win_op()
+        ok, msg = op.write_file(path, content)
+        prefix = "[Windows][写入]" if ok else "[Windows][写入][错误]"
+        return f"{prefix} {msg}"
+
+    def _win_file_list(self, params: str) -> str:
+        """列出目录。params: 目录路径"""
+        path = params.strip() or '.'
+        op = self._get_win_op()
+        ok, entries = op.list_dir(path)
+        if not ok:
+            return f"[Windows][目录][错误] {entries}"
+        lines = [f"[Windows][目录] {path} ({len(entries)} 项)"]
+        for e in entries[:30]:
+            kind = "DIR " if e.get("is_dir") else "FILE"
+            size = e.get("size", 0)
+            lines.append(f"  {kind} {e['name']} ({size} bytes)")
+        return "\n".join(lines)
+
+    def _win_reg_read(self, params: str) -> str:
+        """读取注册表。params: HIVE key\\path value_name"""
+        parts = params.strip().split(None, 2)
+        if len(parts) < 3:
+            return "[Windows] 参数错误：格式为 <HIVE> <key路径> <值名称>"
+        hive, key, val_name = parts[0], parts[1], parts[2]
+        op = self._get_win_op()
+        ok, data = op.reg_read(hive, key, val_name)
+        prefix = "[Windows][注册表读]" if ok else "[Windows][注册表读][错误]"
+        return f"{prefix} {data}"
+
+    def _win_reg_write(self, params: str) -> str:
+        """写入注册表。params: HIVE key\\path value_name data [REG_TYPE]"""
+        parts = params.strip().split(None, 3)
+        if len(parts) < 4:
+            return "[Windows] 参数错误：格式为 <HIVE> <key路径> <值名称> <数据>"
+        hive, key, val_name = parts[0], parts[1], parts[2]
+        rest = parts[3].rsplit(None, 1)
+        if len(rest) == 2 and rest[1].startswith("REG_"):
+            data, reg_type = rest[0], rest[1]
+        else:
+            data, reg_type = parts[3], "REG_SZ"
+        op = self._get_win_op()
+        ok, msg = op.reg_write(hive, key, val_name, data, reg_type)
+        prefix = "[Windows][注册表写]" if ok else "[Windows][注册表写][错误]"
+        return f"{prefix} {msg}"
+
+    def _win_process_list(self, params: str) -> str:
+        """列出进程。params: [过滤名称]"""
+        op = self._get_win_op()
+        filter_name = params.strip()
+        procs = op.find_process(filter_name) if filter_name else op.list_processes()
+        lines = [f"[Windows][进程列表] 共 {len(procs)} 个"]
+        for p in procs[:30]:
+            lines.append(f"  PID={p.get('pid','')} {p.get('name','')}")
+        return "\n".join(lines)
+
+    def _win_process_kill(self, params: str) -> str:
+        """终止进程。params: PID"""
+        try:
+            pid = int(params.strip())
+        except ValueError:
+            return "[Windows] 参数错误：PID 必须为整数"
+        op = self._get_win_op()
+        ok, msg = op.kill_process(pid)
+        prefix = "[Windows][终止进程]" if ok else "[Windows][终止进程][错误]"
+        return f"{prefix} {msg}"
+
+    def _win_run(self, params: str) -> str:
+        """执行命令。params: shell命令"""
+        cmd = params.strip()
+        if not cmd:
+            return "[Windows] 参数错误：命令为空"
+        op = self._get_win_op()
+        ok, out = op.run_command(cmd)
+        prefix = "[Windows][命令]" if ok else "[Windows][命令][错误]"
+        return f"{prefix} {out[:800]}"
+
+    def _win_clipboard(self, params: str) -> str:
+        """剪贴板操作。params: 空=读取，非空=写入"""
+        op = self._get_win_op()
+        text = params.strip()
+        if text:
+            ok = op.clipboard_set(text)
+            return f"[Windows][剪贴板写] {'成功' if ok else '失败'}"
+        content = op.clipboard_get()
+        return f"[Windows][剪贴板读] {content[:500] if content else '(空)'}"
+
+    def _win_sysinfo(self, params: str) -> str:
+        """获取 Windows 系统信息。"""
+        op = self._get_win_op()
+        info = op.get_system_info()
+        lines = ["[Windows][系统信息]"]
+        for k, v in info.items():
+            lines.append(f"  {k}: {v}")
+        return "\n".join(lines)

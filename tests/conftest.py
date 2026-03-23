@@ -69,12 +69,31 @@ for _uix_name in [
     "kivy.uix.widget",
     "kivy.uix.popup",
     "kivy.uix.floatlayout",
+    "kivy.uix.spinner",
 ]:
     _mod = types.ModuleType(_uix_name)
     for _cls in ["BoxLayout", "Label", "Button", "TextInput",
-                 "ScrollView", "GridLayout", "Widget", "Popup", "FloatLayout"]:
+                 "ScrollView", "GridLayout", "Widget", "Popup", "FloatLayout",
+                 "Spinner", "SpinnerOption"]:
         setattr(_mod, _cls, type(_cls, (), {}))
     sys.modules[_uix_name] = _mod
+
+# kivy.graphics
+_graphics_mod = types.ModuleType("kivy.graphics")
+
+
+class _FakeInstruction:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def bind(self, **kwargs):
+        pass
+
+
+for _gfx_cls in ["Color", "Rectangle", "RoundedRectangle", "Line", "Ellipse"]:
+    setattr(_graphics_mod, _gfx_cls, _FakeInstruction)
+sys.modules["kivy.graphics"] = _graphics_mod
+_kivy.graphics = _graphics_mod
 
 # kivy.properties
 _props_mod = types.ModuleType("kivy.properties")

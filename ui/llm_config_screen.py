@@ -54,7 +54,7 @@ def _card_bg(widget, color, radius=8):
 class KeyField(BoxLayout):
     """API Key / 端点 / 模型输入行，带显示/隐藏按钮（仅密钥字段）"""
 
-    def __init__(self, label_text, field_key, is_secret=False, hint_text='', **kwargs):
+    def __init__(self, label_text, field_key, is_secret=False, hint_text='', on_paste=None, **kwargs):
         # Android 用更高的行高，确保触摸目标足够大
         fh = dp(96) if is_android() else dp(74)
         super().__init__(
@@ -67,6 +67,7 @@ class KeyField(BoxLayout):
         self.field_key = field_key
         self.is_secret = is_secret
         self._hidden = is_secret
+        self._on_paste = on_paste  # 粘贴成功后的回调（供父级自动保存）
 
         # 标签行
         lbl_row = BoxLayout(
@@ -161,18 +162,36 @@ class KeyField(BoxLayout):
 
     def _paste_from_clipboard(self, _):
         """Android 专用：从系统剪贴板粘贴到 API Key 输入框。
-        解决 password=True 字段无法通过长按菜单粘贴的问题。
-        注意：此操作替换整个文本内容，适用于 API Key 整段粘贴场景。
+        粘贴后临时明文显示 2 秒，让用户确认内容，然后自动恢复密码模式。
+        同时通过 on_paste 回调通知父级自动保存配置，避免用户忘记按保存。
         """
         try:
             from kivy.core.clipboard import Clipboard
             text = Clipboard.paste()
             if text:
-                self.ti.text = text.strip()
+                stripped = text.strip()
+                if not stripped:
+                    return
+                self.ti.text = stripped
                 self.ti.focus = True
+                # 临时明文显示：让用户能看到粘贴内容是否正确
+                if self.is_secret and self._hidden:
+                    self.ti.password = False
+                    self._eye_btn.color = C_GREEN
+                    Clock.schedule_once(self._restore_password_mode, 2.0)
+                # 通知父级自动保存（解决用户忘记按保存导致 401 的问题）
+                if self._on_paste:
+                    Clock.schedule_once(lambda dt: self._on_paste(), 0.1)
         except Exception as e:
             from kivy.logger import Logger
             Logger.warning(f'KeyField: 粘贴失败（可能是 Android 剪贴板权限限制）: {e}')
+
+    def _restore_password_mode(self, dt):
+        """2 秒后恢复密码遮掩模式"""
+        if self.is_secret:
+            self.ti.password = True
+            self._hidden = True
+            self._eye_btn.color = C_SUBTEXT
 
     @property
     def text(self) -> str:
@@ -434,6 +453,7 @@ class LLMConfigScreen(BoxLayout):
                 field_key=field_key,
                 is_secret=is_secret,
                 hint_text=hint_text,
+                on_paste=self._auto_save_after_paste,
             )
             kf.text = self._config.get(field_key, '')
             self._content.add_widget(kf)
@@ -443,6 +463,11 @@ class LLMConfigScreen(BoxLayout):
         self._content.add_widget(BoxLayout())  # spacer
 
     # ── 配置收集 / 保存 / 测试 ──────────────────────────
+
+    def _auto_save_after_paste(self):
+        """粘贴 API Key 后自动保存配置，防止用户忘记按保存导致 HTTP 401。"""
+        self._save()
+        self._set_status('✓ Key 已粘贴并自动保存', C_GREEN)
 
     def _collect_config(self) -> dict:
         config = dict(self._config)

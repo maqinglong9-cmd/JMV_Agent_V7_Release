@@ -1,8 +1,31 @@
 """远程版本检查模块 - 通过 HTTP 获取最新版本信息"""
 import json
+import ssl
 import urllib.request
 import urllib.error
 from version import __version__, UPDATE_CHECK_URL, is_newer
+
+
+def _ssl_context() -> ssl.SSLContext:
+    """返回带 CA 证书的 SSL 上下文。
+    优先使用 certifi 内置 CA bundle，解决 Android 上
+    [SSL: CERTIFICATE_VERIFY_FAILED] unable to get local issuer certificate 的问题。
+    若 certifi 不可用则回退到不验证（仅限版本检查这类低风险场景）。
+    """
+    try:
+        import certifi
+        ctx = ssl.create_default_context(cafile=certifi.where())
+        return ctx
+    except Exception:
+        pass
+    try:
+        ctx = ssl.create_default_context()
+        return ctx
+    except Exception:
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        return ctx
 
 # 期望的远程 JSON 格式示例：
 # {
@@ -54,7 +77,7 @@ def check_for_update(url: str = UPDATE_CHECK_URL) -> dict:
             url,
             headers={"User-Agent": f"JMVAgent/{__version__}"},
         )
-        with urllib.request.urlopen(req, timeout=_TIMEOUT) as resp:
+        with urllib.request.urlopen(req, timeout=_TIMEOUT, context=_ssl_context()) as resp:
             data = json.loads(resp.read().decode("utf-8"))
 
         remote_version = data.get("version", __version__)

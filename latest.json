@@ -1,17 +1,17 @@
 {
-  "version": "1.2.2",
-  "release_notes": "v1.2.2: 粘贴API Key后临时明文显示2秒可核验内容，同时自动保存配置，彻底解决HTTP 401认证失败问题",
+  "version": "1.2.3",
+  "release_notes": "v1.2.3: 修复Android升级检查SSL证书验证失败（CERTIFICATE_VERIFY_FAILED），使用certifi CA bundle建立安全连接",
   "assets": {
     "windows": {
-      "url": "https://github.com/maqinglong9-cmd/JMV_Agent_V7_Release/releases/download/v1.2.2/BrainAgent.exe",
+      "url": "https://github.com/maqinglong9-cmd/JMV_Agent_V7_Release/releases/download/v1.2.3/BrainAgent.exe",
       "sha256": "018f22fe0f241dd642fe8194e6a08276ee1044b0617804db59530878d540fcb9"
     },
     "android": {
-      "url": "https://github.com/maqinglong9-cmd/JMV_Agent_V7_Release/releases/download/v1.2.2/jmvagent-1.2.2-release-signed.apk",
-      "sha256": "3d30c560f5a55fe90366a98c94767ce664b31f4382be0d3ca0f61a33655365ef"
+      "url": "https://github.com/maqinglong9-cmd/JMV_Agent_V7_Release/releases/download/v1.2.3/jmvagent-1.2.3-release-signed.apk",
+      "sha256": "07be862460502483d40749957a67193959b712647dad84ade76f09aa7bf23df6"
     },
     "linux": {
-      "url": "https://github.com/maqinglong9-cmd/JMV_Agent_V7_Release/releases/download/v1.2.2/BrainAgent_linux",
+      "url": "https://github.com/maqinglong9-cmd/JMV_Agent_V7_Release/releases/download/v1.2.3/BrainAgent_linux",
       "sha256": "cd526afe3fec1c39c8bdd2feea0a59b0397110f65348f7896c455c05f8f223aa"
     }
   }
